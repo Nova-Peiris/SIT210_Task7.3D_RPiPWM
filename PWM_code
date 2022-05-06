@@ -1,0 +1,67 @@
+import RPi.GPIO as GPIO
+import time
+
+#declare pin number standard
+GPIO.setmode(GPIO.BOARD)
+#disable warnings - optional
+GPIO.setwarnings(False)
+
+#Set GPIO pins
+buzzer = 12    
+GPIO_TRIGGER = 18
+GPIO_ECHO = 24
+
+#set GPIO direction
+GPIO.setup(buzzer,GPIO.OUT)
+GPIO.setup(GPIO_TRIGGER, GPIO.OUT)
+GPIO.setup(GPIO_ECHO, GPIO.IN)
+
+#Event func
+def distance():
+    GPIO.output(GPIO_TRIGGER, True)
+    
+    # set Trigger low after 0.01ms 
+    time.sleep(0.00001)
+    GPIO.output(GPIO_TRIGGER, False)
+ 
+    StartTime = time.time()
+    StopTime = time.time()
+ 
+    # save StartTime
+    while GPIO.input(GPIO_ECHO) == 0:
+        StartTime = time.time()
+ 
+    # save time of arrival
+    while GPIO.input(GPIO_ECHO) == 1:
+        StopTime = time.time()
+ 
+    # time difference between start and arrival
+    TimeElapsed = StopTime - StartTime
+    # multiply with the sonic speed (34300 cm/s) and divide by 2
+    distance = (TimeElapsed * 34300) / 2
+ 
+    return distance
+
+# Re-maps a number from one range to another
+def _map(y, inMin, inMax, outMin, outMax):
+    return int((y - inMin) * (outMax - outMin) / (inMax - inMin) + outMin)
+
+pi_pwm = GPIO.PWM(buzzer,15)    #create a PWM instance with frequency
+pi_pwm.start(10)         #start PWM of required Duty Cycle
+
+try:
+    while True:
+        _dist = distance()
+        print ("Distance = %.1f cm" % _dist)
+        if _dist > 2 and _dist <= 50:
+            outValue = _map(_dist, 2, 50, 100, 0)
+            print(outValue)
+            pi_pwm.ChangeDutyCycle(outValue)
+            time.sleep(0.01)
+        else:
+            pi_pwm.ChangeDutyCycle(0)
+            time.sleep(0.01)
+        time.sleep(0.2)
+except KeyboardInterrupt:
+    print("Interrupted by User")
+    GPIO.cleanup()
